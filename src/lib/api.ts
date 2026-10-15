@@ -100,6 +100,13 @@ export const api = {
   },
 
   // Student operations
+  registerStudent: (fullName: string | undefined, token: string) => {
+    return fetchJson<{ message: string; profile: UserProfile }>('/api/student/register', {
+      method: 'POST',
+      body: JSON.stringify({ fullName }),
+    }, token);
+  },
+
   getWishlist: (token: string) => {
     return fetchJson<WishlistItem[]>('/api/student/wishlist', {}, token);
   },

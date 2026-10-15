@@ -16,6 +16,7 @@ import {
   GraduationCap,
   Library,
   Compass,
+  UserPlus,
 } from 'lucide-react';
 import { Book, Category, StudyResource } from '../types.ts';
 import { api } from '../lib/api.ts';
@@ -138,6 +139,13 @@ export const HomePage: React.FC = () => {
           {/* Quick CTA Action Buttons */}
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
             <Link
+              to="/signup"
+              className="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-gradient-to-r from-blue-500 via-indigo-600 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border border-blue-400/40 backdrop-blur-md shadow-lg shadow-blue-500/25 transition-all flex items-center gap-2"
+            >
+              <UserPlus className="w-4 h-4 text-white" />
+              <span>Register with Google</span>
+            </Link>
+            <Link
               to="/books"
               className="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-md transition-all flex items-center gap-2"
             >
@@ -156,7 +164,7 @@ export const HomePage: React.FC = () => {
               className="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-md transition-all flex items-center gap-2"
             >
               <Library className="w-4 h-4 text-purple-400" />
-              <span>Where to Find Locator</span>
+              <span>Where to Find</span>
             </Link>
           </div>
         </div>

@@ -521,6 +521,58 @@ apiApp.post('/reports', async (req: Request, res: Response) => {
 // 5. STUDENT ACCOUNT & PERSONAL LIBRARY
 // ==========================================
 
+// POST /api/student/register
+apiApp.post('/student/register', optionalAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const bodyEmail = req.body.email?.trim().toLowerCase();
+    const email = req.user?.email || bodyEmail;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Google Account Email is required for registration' });
+    }
+
+    const uid = req.user?.uid || `google-user-${email.replace(/[^a-z0-9]/g, '-')}`;
+    const { fullName } = req.body;
+    const nameToSave = fullName?.trim() || req.user?.name || email.split('@')[0];
+
+    const existing = await db.select().from(profiles).where(or(eq(profiles.id, uid), eq(profiles.email, email)));
+    let savedProfile;
+
+    if (existing.length > 0) {
+      const [updated] = await db
+        .update(profiles)
+        .set({ fullName: nameToSave })
+        .where(eq(profiles.id, existing[0].id))
+        .returning();
+      savedProfile = updated;
+    } else {
+      const [inserted] = await db
+        .insert(profiles)
+        .values({
+          id: uid,
+          email,
+          fullName: nameToSave,
+          role: 'student',
+        })
+        .returning();
+      savedProfile = inserted;
+    }
+
+    const sessionToken = req.headers.authorization?.startsWith('Bearer ')
+      ? req.headers.authorization.split('Bearer ')[1]
+      : `google-session-${encodeURIComponent(email)}`;
+
+    res.status(201).json({
+      message: 'Google Student Account registered successfully',
+      profile: savedProfile,
+      token: sessionToken,
+    });
+  } catch (error: any) {
+    console.error('Error registering student account:', error);
+    res.status(500).json({ error: 'Failed to register student account' });
+  }
+});
+
 // GET /api/student/profile
 apiApp.get('/student/profile', requireAuth, async (req: AuthRequest, res: Response) => {
   try {

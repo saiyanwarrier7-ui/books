@@ -7,6 +7,7 @@ import {
 } from 'firebase/auth';
 import { auth, googleAuthProvider } from '../lib/firebase.ts';
 import { UserProfile } from '../types.ts';
+import { api } from '../lib/api.ts';
 
 interface AuthContextType {
   user: FirebaseUser | null;
@@ -16,6 +17,8 @@ interface AuthContextType {
   isStudent: boolean;
   isLoading: boolean;
   loginWithGoogle: () => Promise<void>;
+  registerWithGoogle: (fullName?: string) => Promise<void>;
+  registerGoogleEmail: (email: string, fullName?: string) => Promise<void>;
   loginAsDemoStudent: () => void;
   loginAsDemoAdmin: () => void;
   logout: () => Promise<void>;
@@ -30,6 +33,8 @@ const AuthContext = createContext<AuthContextType>({
   isStudent: false,
   isLoading: true,
   loginWithGoogle: async () => {},
+  registerWithGoogle: async () => {},
+  registerGoogleEmail: async () => {},
   loginAsDemoStudent: () => {},
   loginAsDemoAdmin: () => {},
   logout: async () => {},
@@ -50,6 +55,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     } else if (savedDemo === 'student') {
       loginAsDemoStudent();
+      return;
+    } else if (savedDemo && savedDemo.startsWith('google:')) {
+      const gEmail = decodeURIComponent(savedDemo.replace('google:', ''));
+      const gToken = `google-session-${encodeURIComponent(gEmail)}`;
+      setToken(gToken);
+      fetchProfile(gToken).then(() => {
+        setIsLoading(false);
+      });
       return;
     }
 
@@ -83,6 +96,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (res.ok) {
         const data = await res.json();
         setProfile(data);
+        if (!user) {
+          setUser({
+            uid: data.id,
+            email: data.email,
+            displayName: data.fullName,
+          } as any);
+        }
       }
     } catch (err) {
       console.error('Failed to fetch profile:', err);
@@ -100,6 +120,60 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await fetchProfile(idToken);
     } catch (error: any) {
       console.error('Google Sign-In failed:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const registerWithGoogle = async (fullName?: string) => {
+    try {
+      setIsLoading(true);
+      const cred = await signInWithPopup(auth, googleAuthProvider);
+      const idToken = await cred.user.getIdToken();
+      setUser(cred.user);
+      setToken(idToken);
+      localStorage.removeItem('hub-demo-auth');
+
+      // Explicitly register in PostgreSQL database
+      const preferredName = fullName?.trim() || cred.user.displayName || cred.user.email?.split('@')[0];
+      try {
+        const regRes = await api.registerStudent(preferredName, idToken);
+        setProfile(regRes.profile);
+      } catch (err) {
+        await fetchProfile(idToken);
+      }
+    } catch (error: any) {
+      console.error('Google Registration failed:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const registerGoogleEmail = async (googleEmail: string, fullName?: string) => {
+    try {
+      setIsLoading(true);
+      const res = await fetch('/api/student/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: googleEmail, fullName }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to register Google account');
+      }
+      const data = await res.json();
+      setToken(data.token);
+      setProfile(data.profile);
+      setUser({
+        uid: data.profile.id,
+        email: data.profile.email,
+        displayName: data.profile.fullName,
+      } as any);
+      localStorage.setItem('hub-demo-auth', 'google:' + encodeURIComponent(data.profile.email));
+    } catch (error: any) {
+      console.error('Google direct registration failed:', error);
       throw error;
     } finally {
       setIsLoading(false);
@@ -173,6 +247,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isStudent,
         isLoading,
         loginWithGoogle,
+        registerWithGoogle,
+        registerGoogleEmail,
         loginAsDemoStudent,
         loginAsDemoAdmin,
         logout,

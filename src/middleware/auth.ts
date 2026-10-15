@@ -44,6 +44,28 @@ export const requireAuth = async (
     return next();
   }
 
+  // Support registered Google Account session token
+  if (token.startsWith('google-session-')) {
+    const userEmail = decodeURIComponent(token.replace('google-session-', ''));
+    try {
+      const [userProfile] = await db
+        .select()
+        .from(profiles)
+        .where(eq(profiles.email, userEmail));
+      if (userProfile) {
+        req.user = {
+          uid: userProfile.id,
+          email: userProfile.email,
+          name: userProfile.fullName || userProfile.email.split('@')[0],
+          dbRole: userProfile.role,
+        } as any;
+        return next();
+      }
+    } catch (e) {
+      console.error('Error fetching google-session profile:', e);
+    }
+  }
+
   try {
     const decodedToken = await adminAuth.verifyIdToken(token);
     req.user = decodedToken;
@@ -116,6 +138,26 @@ export const optionalAuth = async (
       dbRole: 'student',
     } as any;
     return next();
+  }
+  if (token.startsWith('google-session-')) {
+    const userEmail = decodeURIComponent(token.replace('google-session-', ''));
+    try {
+      const [userProfile] = await db
+        .select()
+        .from(profiles)
+        .where(eq(profiles.email, userEmail));
+      if (userProfile) {
+        req.user = {
+          uid: userProfile.id,
+          email: userProfile.email,
+          name: userProfile.fullName || userProfile.email.split('@')[0],
+          dbRole: userProfile.role,
+        } as any;
+        return next();
+      }
+    } catch {
+      // Continue anonymously
+    }
   }
 
   try {

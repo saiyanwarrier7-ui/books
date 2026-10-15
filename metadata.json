@@ -1,0 +1,6 @@
+{
+  "name": "IT Study Hub",
+  "description": "IT Study Hub – Discover IT textbooks, programming guides, academic study notes, previous-year question papers, and verified source availability for Information Technology students.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
